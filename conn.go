@@ -15,19 +15,19 @@ type Message struct {
 
 // Wraps the mqtt connection and deals with reconnects, recovery and generally
 // hides this mess
-type NinjaConnection struct {
+type BusConnection struct {
 	mqtt *mqtt.MqttClient
 	log  loggo.Logger
 }
 
-func Connect(url *url.URL, clientId string) (*NinjaConnection, error) {
+func Connect(url *url.URL, clientId string) (*BusConnection, error) {
 
 	logger := loggo.GetLogger(fmt.Sprintf("%s.%s", "conn", clientId))
 
 	opts :=
 		mqtt.NewClientOptions().SetBroker(url.String()).SetClientId(clientId).SetTraceLevel(mqtt.Off)
 
-	conn := &NinjaConnection{mqtt: mqtt.NewClient(opts), log: logger}
+	conn := &BusConnection{mqtt: mqtt.NewClient(opts), log: logger}
 
 	_, err := conn.mqtt.Start()
 
@@ -42,26 +42,4 @@ func Connect(url *url.URL, clientId string) (*NinjaConnection, error) {
 	}
 
 	return conn, nil
-}
-
-type Handler func(msg Message, conn *NinjaConnection)
-
-func (conn *NinjaConnection) SubscribeFunc(topicPattern string, handler Handler) error {
-
-	topicFilter, err := mqtt.NewTopicFilter(topicPattern, 0)
-
-	if err != nil {
-		return err
-	}
-
-	receipt, err := conn.mqtt.StartSubscription(func(client *mqtt.MqttClient, msg mqtt.Message) {
-
-		handler(Message{msg}, conn)
-	}, topicFilter)
-
-	<-receipt
-	conn.log.Infof("subscribed to %s", topicPattern)
-
-	return err
-
 }
